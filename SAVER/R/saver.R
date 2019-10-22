@@ -99,83 +99,82 @@ saver <- function(x, do.fast = TRUE, ncores = 1, size.factor = NULL,
                   npred = NULL, pred.cells = NULL, pred.genes = NULL,
                   pred.genes.only = FALSE, null.model = FALSE, mu = NULL,
                   estimates.only = FALSE) {
-  if (!is.null(mu)) {
-    mu <- check.mu(x, mu)
-  }
-  x <- clean.data(x)
-  np <- dim(x)
-  ngenes <- as.integer(np[1])
-  ncells <- as.integer(np[2])
-
-  message(ngenes, " genes, ", ncells, " cells")
-
-  # assign size factor
-  sf.out <- calc.size.factor(x, size.factor, ncells)
-  sf <- sf.out[[1]]
-  scale.sf <- sf.out[[2]]
-
-  gene.names <- rownames(x)
-  cell.names <- colnames(x)
-
-  # Set up parallel backend
-  cl.create <- FALSE
-  if (foreach::getDoParWorkers() > 1) {
-    if (ncores > 1 & foreach::getDoParWorkers() != ncores) {
-      message(paste("Parallel backend already registered and is inconsistent",
-                    "with ncores."))
-    }
-    ncores <- getDoParWorkers()
-  } else {
-    if (ncores > 1) {
-      cl.create <- TRUE
-      cl <- parallel::makeCluster(ncores, outfile = "")
-      doParallel::registerDoParallel(cl)
-      on.exit({
-        parallel::stopCluster(cl)
-        foreach::registerDoSEQ()
-      })
-    }
-  }
-
-  # if prior means are provided
-  if (!is.null(mu)) {
-    out <- saver.fit.mean(x, ncores, sf, scale.sf, mu, ngenes = nrow(x),
-                          ncells = ncol(x), gene.names, cell.names,
-                          estimates.only)
-  } else if (null.model) {
-    out <- saver.fit.null(x, ncores, sf, scale.sf, ngenes = nrow(x),
-                          ncells = ncol(x), gene.names, cell.names,
-                          estimates.only)
-  } else {
-    # assign pred.cells and pred.genes
-    pred.cells <- get.pred.cells(pred.cells, ncells)
-    pred.genes <- get.pred.genes(x, pred.genes, npred, ngenes)
-    npred <- length(pred.genes)
-
-
-    good.genes <- which(Matrix::rowMeans(sweep(x, 2, sf, "/")) >= 0.1)
-    x.est <- t(as.matrix(log(sweep(x[good.genes, ] + 1, 2, sf, "/"))))
-    if (pred.genes.only) {
-      x <- x[pred.genes, , drop = FALSE]
-      pred.genes <- 1:nrow(x)
+      if (!is.null(mu)) {
+            mu <- check.mu(x, mu)
+      }
+      x <- clean.data(x)
+      np <- dim(x)
+      ngenes <- as.integer(np[1])
+      ncells <- as.integer(np[2])
+    
+      message(ngenes, " genes, ", ncells, " cells")
+    
+      # assign size factor
+      sf.out <- calc.size.factor(x, size.factor, ncells)
+      sf <- sf.out[[1]]
+      scale.sf <- sf.out[[2]]
+    
       gene.names <- rownames(x)
       cell.names <- colnames(x)
-    }
-
-    out <- saver.fit(x, x.est, do.fast, ncores, sf, scale.sf, pred.genes,
-                     pred.cells, null.model, ngenes = nrow(x),
-                     ncells = ncol(x), gene.names, cell.names,
-                     estimates.only)
-  }
-  message("Done!")
-  message("Finish time: ", Sys.time())
-  message("Total time: ", format(out$info$total.time))
-  if (!estimates.only) {
-    class(out) <- "saver"
-    out
-  } else {
-    out$estimate
-  }
+    
+      # Set up parallel backend
+      cl.create <- FALSE
+      if (foreach::getDoParWorkers() > 1) {
+            if (ncores > 1 & foreach::getDoParWorkers() != ncores) {
+                message(paste("Parallel backend already registered and is inconsistent", "with ncores."))
+            }
+            ncores <- foreach::getDoParWorkers()
+      } else {
+            if (ncores > 1) {
+                  cl.create <- TRUE
+                  cl <- parallel::makeCluster(ncores, outfile = "")
+                  doParallel::registerDoParallel(cl)
+                  on.exit({
+                    parallel::stopCluster(cl)
+                    foreach::registerDoSEQ()
+                  })
+            }
+      }
+    
+      # if prior means are provided
+      if (!is.null(mu)) {
+            out <- saver.fit.mean(x, ncores, sf, scale.sf, mu, ngenes = nrow(x),
+                                  ncells = ncol(x), gene.names, cell.names,
+                                  estimates.only)
+      } else if (null.model) {
+            out <- saver.fit.null(x, ncores, sf, scale.sf, ngenes = nrow(x),
+                              ncells = ncol(x), gene.names, cell.names,
+                              estimates.only)
+      } else {
+            # assign pred.cells and pred.genes
+            pred.cells <- get.pred.cells(pred.cells, ncells)
+            pred.genes <- get.pred.genes(x, pred.genes, npred, ngenes)
+            npred <- length(pred.genes)
+        
+        
+            good.genes <- which(Matrix::rowMeans(sweep(x, 2, sf, "/")) >= 0.1)
+            x.est <- t(as.matrix(log(sweep(x[good.genes, ] + 1, 2, sf, "/"))))
+            if (pred.genes.only) {
+              x <- x[pred.genes, , drop = FALSE]
+              pred.genes <- 1:nrow(x)
+              gene.names <- rownames(x)
+              cell.names <- colnames(x)
+            }
+        
+            out <- saver.fit(x, x.est, do.fast, ncores, sf, scale.sf, pred.genes,
+                             pred.cells, null.model, ngenes = nrow(x),
+                             ncells = ncol(x), gene.names, cell.names,
+                             estimates.only)
+      }
+      message("Done!")
+      message("Finish time: ", Sys.time())
+      message("Total time: ", format(out$info$total.time))
+      if (!estimates.only) {
+        class(out) <- "saver"
+        out
+      } else {
+        out$estimate
+      }
 }
 
 
